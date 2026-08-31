@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "alce-american",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const h=require('http'),f=require('fs'),p=require('path');const r=process.cwd();const t={'.html':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.svg':'image/svg+xml','.ico':'image/x-icon'};h.createServer((q,s)=>{let u=decodeURIComponent(q.url.split('?')[0]);if(u==='/')u='/index.html';const fp=p.join(r,u);if(!fp.startsWith(r)||!f.existsSync(fp)||f.statSync(fp).isDirectory()){s.writeHead(404);return s.end('404')}s.writeHead(200,{'Content-Type':t[p.extname(fp).toLowerCase()]||'application/octet-stream'});f.createReadStream(fp).pipe(s)}).listen(4173,()=>console.log('servindo em http://localhost:4173'))"],
+      "port": 4173
+    }
+  ]
+}
