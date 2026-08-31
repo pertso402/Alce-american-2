@@ -64,3 +64,28 @@ array. Nada mais precisa ser alterado.
 
 Por ser estático, funciona em GitHub Pages, Vercel, Netlify ou qualquer
 hospedagem comum. No GitHub Pages, basta apontar para a branch `main` na raiz.
+
+## O kit 3D do banner
+
+O banner da home mostra um **modelo 3D procedural** do kit (copo em inox com o
+logo gravado + bomba V4 Square), que gira sozinho e pode ser girado com o
+mouse ou o dedo. O código está em `assets/kit3d.js` e usa three.js, que fica
+versionado em `assets/vendor/` — o site não depende de CDN.
+
+Pontos que valem saber antes de mexer:
+
+- **É uma representação, não um scan do produto.** As proporções e o acabamento
+  foram modelados a partir das fotos. A foto real continua sendo a imagem da
+  página do produto.
+- **A foto é o fallback.** Ela fica embaixo do canvas e só some quando o 3D
+  carrega. Se o WebGL falhar, se o navegador for antigo ou se a pessoa usar
+  "reduzir movimento" no sistema, o banner mostra a foto e nada quebra.
+- **O carregamento é sob demanda.** O three.js (~690 KB, ~170 KB comprimido) só
+  é baixado na home, via `import()` dinâmico — as outras páginas não pagam esse
+  custo.
+- **A animação pausa sozinha** quando o banner sai da tela ou a aba vai para
+  segundo plano, e a cena é destruída ao navegar para outra página.
+
+Para ajustar: a velocidade de giro é a constante `AUTO`, o enquadramento está em
+`camera.position` / `ALVO`, e a iluminação (o que o inox reflete) é toda gerada
+em `texturaAmbiente()`.
