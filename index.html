@@ -92,15 +92,8 @@ input,select,textarea{font:inherit}
 .banner__arte{display:grid;place-items:center;position:relative}
 .banner__arte .ph{width:100%;max-width:360px;aspect-ratio:1;border:1px solid var(--linha);overflow:hidden;background:radial-gradient(circle at 50% 42%,#9d8168,#4f3d2f);position:relative}
 .banner__arte .ph img{width:100%;height:100%;object-fit:contain}
-/* palco 3D do kit — a foto fica por baixo e some quando o 3D carrega */
-/* pan-y (e não none): o dedo continua rolando a página verticalmente em cima
-   do banner, e só o arrasto horizontal gira o kit */
-.ph canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
-.ph canvas:active{cursor:grabbing}
-.ph__fb{transition:opacity .7s ease}
-.ph.pronto .ph__fb{opacity:0}
-.ph__hint{position:absolute;bottom:11px;left:14px;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45);opacity:0;transition:opacity .7s ease .3s;pointer-events:none}
-.ph.pronto .ph__hint{opacity:1}
+/* vídeo 360° do kit: já vem quadrado do encode, então cover encaixa exato */
+.ph__v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:transparent}
 .banner__selo{position:absolute;bottom:-14px;right:0;background:var(--verde);color:#fff;font-family:var(--d);font-size:22px;line-height:1;padding:12px 16px;letter-spacing:.04em}
 @media(max-width:820px){.banner .wrap{grid-template-columns:1fr}.banner__arte{order:-1}.banner__selo{right:10px}}
 
@@ -710,9 +703,14 @@ function viewHome(){
     </div>
     <div class="banner__arte">
       <div class="ph" id="palcoKit">
-        <img class="ph__fb" src="assets/kit-copo-bomba.jpg" alt="Kit tereré Alce American: copo em inox e bomba">
-        <canvas id="kitCanvas" aria-hidden="true"></canvas>
-        <span class="ph__hint">arraste para girar</span>
+        <video class="ph__v" id="kitVideo" poster="assets/kit-3d-poster.jpg"
+               autoplay muted loop playsinline preload="metadata"
+               disablepictureinpicture
+               aria-label="Kit de tereré Alce American girando 360 graus">
+          <source src="assets/kit-3d.webm" type="video/webm">
+          <source src="assets/kit-3d.mp4" type="video/mp4">
+          <img src="assets/kit-copo-bomba.jpg" alt="Kit tereré Alce American: copo em inox e bomba">
+        </video>
       </div>
       <span class="banner__selo">KIT POR R$ 150</span>
     </div>
@@ -1025,28 +1023,32 @@ function render(){
   document.title = titulo;
   marcarMenu(a, b);
   if(a === 'pagina' && b === 'contato') pintarContato();
-  montarPalco3D();
+  montarVideoKit();
   window.scrollTo({top:0, behavior:'instant'});
 }
 
-/* O kit 3D só existe na home. Como cada rota redesenha o <main>, a cena é
-   destruída ao sair e montada de novo ao voltar — nada fica rodando à toa.
-   Se o WebGL falhar ou a pessoa preferir menos animação, a foto continua lá. */
-let kit3d = null;
-function montarPalco3D(){
-  if(kit3d){ kit3d.destruir(); kit3d = null; }
-  const cv = $('#kitCanvas');
-  if(!cv) return;
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+/* Vídeo 360° do kit, só na home.
+   - muted + playsinline é o que permite o autoplay nos celulares
+   - com "reduzir movimento" ligado no sistema, ele fica parado no poster
+   - pausa quando sai da tela, para não gastar bateria rodando escondido */
+function montarVideoKit(){
+  const v = $('#kitVideo');
+  if(!v) return;
 
-  import('./assets/kit3d.js')
-    .then(m => m.montarKit3D(cv))
-    .then(inst => {
-      if(!document.body.contains(cv)){ inst.destruir(); return; }
-      kit3d = inst;
-      $('#palcoKit').classList.add('pronto');
-    })
-    .catch(err => console.warn('[Alce American] 3D indisponível, usando a foto.', err));
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    v.removeAttribute('autoplay');
+    v.pause();
+    return;
+  }
+
+  v.muted = true;                      // o Safari ignora o atributo em alguns casos
+  const tocar = () => { const p = v.play(); if(p) p.catch(()=>{}); };
+  tocar();
+
+  const io = new IntersectionObserver(es => {
+    if(es[0].isIntersecting) tocar(); else v.pause();
+  }, { threshold: 0.05 });
+  io.observe(v);
 }
 
 function marcarMenu(a,b){

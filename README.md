@@ -8,7 +8,7 @@ O pedido é montado no site e finalizado pelo WhatsApp.
 
 ```
 index.html                 site inteiro (HTML + CSS + JS)
-assets/                    imagens usadas pelo site (otimizadas) e logos
+assets/                    imagens, vídeo do banner e logos
 produtos e precos/         fotos originais, como recebidas
 .claude/launch.json        servidor local de desenvolvimento
 ```
@@ -65,27 +65,27 @@ array. Nada mais precisa ser alterado.
 Por ser estático, funciona em GitHub Pages, Vercel, Netlify ou qualquer
 hospedagem comum. No GitHub Pages, basta apontar para a branch `main` na raiz.
 
-## O kit 3D do banner
+## O vídeo 360° do banner
 
-O banner da home mostra um **modelo 3D procedural** do kit (copo em inox com o
-logo gravado + bomba V4 Square), que gira sozinho e pode ser girado com o
-mouse ou o dedo. O código está em `assets/kit3d.js` e usa three.js, que fica
-versionado em `assets/vendor/` — o site não depende de CDN.
+O banner da home mostra o **vídeo real do kit girando 360°**, em loop, sem som e
+sem controles. Ele entra sozinho e não precisa de clique.
 
-Pontos que valem saber antes de mexer:
+Como o arquivo foi preparado (a partir do original em 720x1280):
 
-- **É uma representação, não um scan do produto.** As proporções e o acabamento
-  foram modelados a partir das fotos. A foto real continua sendo a imagem da
-  página do produto.
-- **A foto é o fallback.** Ela fica embaixo do canvas e só some quando o 3D
-  carrega. Se o WebGL falhar, se o navegador for antigo ou se a pessoa usar
-  "reduzir movimento" no sistema, o banner mostra a foto e nada quebra.
-- **O carregamento é sob demanda.** O three.js (~690 KB, ~170 KB comprimido) só
-  é baixado na home, via `import()` dinâmico — as outras páginas não pagam esse
-  custo.
-- **A animação pausa sozinha** quando o banner sai da tela ou a aba vai para
-  segundo plano, e a cena é destruída ao navegar para outra página.
+- recortado em `720x960`, que é o que contém o produto inteiro em todos os
+  quadros do giro — as bombas sobem e descem enquanto gira;
+- transformado em quadrado `800x800` preenchendo as laterais com o próprio
+  fundo desfocado, então encaixa no banner sem cortar nada e sem emenda visível;
+- exportado em dois formatos, `kit-3d.webm` (384 KB) e `kit-3d.mp4` (412 KB) —
+  o navegador escolhe o que suporta;
+- áudio removido, e `kit-3d-poster.jpg` como primeiro quadro.
 
-Para ajustar: a velocidade de giro é a constante `AUTO`, o enquadramento está em
-`camera.position` / `ALVO`, e a iluminação (o que o inox reflete) é toda gerada
-em `texturaAmbiente()`.
+Comportamento no site:
+
+- **Autoplay funciona no celular** porque o vídeo é `muted` + `playsinline`.
+- **Pausa quando sai da tela**, para não gastar bateria rodando escondido.
+- Com **"reduzir movimento"** ligado no sistema, fica parado no poster.
+- Se o navegador não tocar vídeo, aparece a foto `kit-copo-bomba.jpg`.
+
+Para trocar o vídeo depois, gere os três arquivos com os mesmos nomes em
+`assets/` — o HTML não precisa mudar.
