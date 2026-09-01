@@ -90,7 +90,11 @@ input,select,textarea{font:inherit}
 .banner p{color:var(--cinza);margin-top:12px;max-width:42ch;font-size:15px}
 .banner__cta{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
 .banner__arte{display:grid;place-items:center;position:relative}
-.banner__arte .ph{width:100%;max-width:360px;aspect-ratio:1;border:1px solid var(--linha);overflow:hidden;background:radial-gradient(circle at 50% 42%,#9d8168,#4f3d2f);position:relative}
+.banner__arte .ph{display:block;width:100%;max-width:360px;aspect-ratio:1;border:1px solid var(--linha);overflow:hidden;background:radial-gradient(circle at 50% 42%,#9d8168,#4f3d2f);position:relative;transition:border-color .18s}
+.banner__arte .ph:hover{border-color:var(--terra)}
+.ph__ver{position:absolute;left:0;right:0;bottom:0;padding:26px 14px 12px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:linear-gradient(transparent,rgba(28,25,23,.6));opacity:0;transition:opacity .22s}
+.ph:hover .ph__ver,.ph:focus-visible .ph__ver{opacity:1}
+@media(hover:none){.ph__ver{opacity:1}}
 .banner__arte .ph img{width:100%;height:100%;object-fit:contain}
 /* vídeo 360° do kit: já vem quadrado do encode, então cover encaixa exato */
 .ph__v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:transparent}
@@ -697,12 +701,12 @@ function viewHome(){
       <h1>Tereré do jeito<br><em>que aguenta o dia</em></h1>
       <p>Copo em inox gravado a laser e bomba V4 Square — as duas peças no kit, prontas para a roda. Inox não pega cheiro, não enferruja e vai durar mais que a erva.</p>
       <div class="banner__cta">
-        <a href="#/produto/kit-copo-bomba" class="btn btn--p">Ver o kit completo</a>
-        <a href="#/catalogo" class="btn btn--s">Ver todos os produtos</a>
+        <button class="btn btn--p" data-add="kit-copo-bomba">Adicionar à sacola</button>
+        <a href="#/produto/kit-copo-bomba" class="btn btn--s">Ver o kit completo</a>
       </div>
     </div>
     <div class="banner__arte">
-      <div class="ph" id="palcoKit">
+      <a class="ph" id="palcoKit" href="#/produto/kit-copo-bomba" aria-label="Ver a página do kit de tereré">
         <video class="ph__v" id="kitVideo" poster="assets/kit-3d-poster.jpg"
                autoplay muted loop playsinline preload="metadata"
                disablepictureinpicture
@@ -711,7 +715,8 @@ function viewHome(){
           <source src="assets/kit-3d.mp4" type="video/mp4">
           <img src="assets/kit-copo-bomba.jpg" alt="Kit tereré Alce American: copo em inox e bomba">
         </video>
-      </div>
+        <span class="ph__ver">Ver o kit →</span>
+      </a>
       <span class="banner__selo">KIT POR R$ 150</span>
     </div>
   </div></section>
@@ -1152,8 +1157,10 @@ document.addEventListener('click', e => {
   const fav = el('[data-fav]');
   if(fav){ e.preventDefault(); toggleFav(fav.dataset.fav); return; }
 
+  // preventDefault porque o botão do banner fica ao lado de um link para o
+  // produto — sem isso, um clique poderia adicionar e navegar ao mesmo tempo
   const add = el('[data-add]');
-  if(add){ addCarrinho(add.dataset.add, '', 1); abrirSacola(); return; }
+  if(add){ e.preventDefault(); addCarrinho(add.dataset.add, '', 1); abrirSacola(); return; }
 
   const ir = el('[data-ir]');
   if(ir){ location.hash = '#/produto/' + ir.dataset.ir; return; }
