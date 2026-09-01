@@ -32,9 +32,9 @@ Abra o `index.html`, procure por `const CONFIG` (perto do início da tag
 | Campo | O que é |
 |---|---|
 | `whatsapp` | Número com DDI + DDD, só dígitos. Ex.: `5567999998888` |
-| `instagram` | @ do perfil, sem o `@` |
-| `email` | E-mail de contato |
-| `cnpj` | CNPJ exibido no rodapé |
+| `instagram` | @ do perfil, sem o `@`. Vazio = o link não aparece |
+| `email` | E-mail de contato. Vazio = o link não aparece |
+| `cnpj` | CNPJ do rodapé. Vazio = a linha não aparece |
 | `freteGratis` | Valor mínimo para frete grátis (R$) |
 | `pixDesconto` | Desconto à vista no Pix (`0.10` = 10%) |
 | `maxParcelas` / `parcelaMinima` | Regras de parcelamento no cartão |

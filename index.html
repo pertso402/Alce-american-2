@@ -404,9 +404,9 @@ input,select,textarea{font:inherit}
    ========================================================================== */
 const CONFIG = {
   whatsapp:      '5544998617658',   // (44) 99861-7658 — DDI+DDD, só dígitos
-  instagram:     'alceamerican',    // <-- @ do Instagram, sem o "@"
-  email:         'contato@alceamerican.com.br',
-  cnpj:          '00.000.000/0001-00',
+  instagram:     '',                // @ do Instagram, sem o "@". Vazio = não mostra o link
+  email:         '',                // e-mail de contato. Vazio = não mostra o link
+  cnpj:          '',                // CNPJ do rodapé. Vazio = a linha não aparece
   freteGratis:   199,               // valor mínimo para frete grátis (R$)
   pixDesconto:   0.10,              // 10% de desconto no Pix
   maxParcelas:   6,
@@ -1259,10 +1259,10 @@ function montarMenu(){
 function pintarContato(){
   const ul = $('#contatoLista');
   if(!ul) return;
-  ul.innerHTML = `
-    <li>WhatsApp: <a href="${zapLink('Olá! Vim pelo site da Alce American.')}" target="_blank" rel="noopener">${telFormatado()}</a></li>
-    <li>Instagram: <a href="https://instagram.com/${CONFIG.instagram}" target="_blank" rel="noopener">@${esc(CONFIG.instagram)}</a></li>
-    <li>E-mail: <a href="mailto:${CONFIG.email}">${esc(CONFIG.email)}</a></li>`;
+  const itens = [`<li>WhatsApp: <a href="${zapLink('Olá! Vim pelo site da Alce American.')}" target="_blank" rel="noopener">${telFormatado()}</a></li>`];
+  if(CONFIG.instagram) itens.push(`<li>Instagram: <a href="https://instagram.com/${esc(CONFIG.instagram)}" target="_blank" rel="noopener">@${esc(CONFIG.instagram)}</a></li>`);
+  if(CONFIG.email)     itens.push(`<li>E-mail: <a href="mailto:${esc(CONFIG.email)}">${esc(CONFIG.email)}</a></li>`);
+  ul.innerHTML = itens.join('');
 }
 function telFormatado(){
   const d = CONFIG.whatsapp.replace(/\D/g,'');
@@ -1271,12 +1271,15 @@ function telFormatado(){
   return `(${ddd}) ${n.slice(0, n.length-4)}-${n.slice(-4)}`;
 }
 function montarRodape(){
-  $('#peContato').innerHTML = `
-    <li><a href="${zapLink('Olá! Vim pelo site da Alce American.')}" target="_blank" rel="noopener">WhatsApp</a></li>
-    <li><a href="https://instagram.com/${CONFIG.instagram}" target="_blank" rel="noopener">Instagram</a></li>
-    <li><a href="mailto:${CONFIG.email}">${esc(CONFIG.email)}</a></li>`;
-  $('#peLegal').textContent =
-    `© ${new Date().getFullYear()} Alce American · CNPJ ${CONFIG.cnpj} · Todos os direitos reservados`;
+  const itens = [`<li><a href="${zapLink('Olá! Vim pelo site da Alce American.')}" target="_blank" rel="noopener">WhatsApp</a></li>`];
+  if(CONFIG.instagram) itens.push(`<li><a href="https://instagram.com/${esc(CONFIG.instagram)}" target="_blank" rel="noopener">Instagram</a></li>`);
+  if(CONFIG.email)     itens.push(`<li><a href="mailto:${esc(CONFIG.email)}">${esc(CONFIG.email)}</a></li>`);
+  $('#peContato').innerHTML = itens.join('');
+
+  const legal = [`© ${new Date().getFullYear()} Alce American`];
+  if(CONFIG.cnpj) legal.push(`CNPJ ${CONFIG.cnpj}`);
+  legal.push('Todos os direitos reservados');
+  $('#peLegal').textContent = legal.join(' · ');
 }
 
 montarMenu();
