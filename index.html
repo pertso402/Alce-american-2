@@ -253,6 +253,11 @@ input,select,textarea{font:inherit}
 #ckCepMsg.erro{color:var(--terra);font-weight:600}
 
 /* observação legal na página do produto */
+.card__sob,.pv__sob{font-family:var(--f);font-weight:700}
+.card__sob{font-size:16px;letter-spacing:0}
+.pv__sob{font-size:26px;letter-spacing:0}
+.destaques{list-style:disc;display:grid;gap:5px;margin:4px 0 0 18px}
+.destaques li{margin:0}
 .obs{margin-top:18px;font-size:11.5px;line-height:1.55;color:var(--cinza);border:1px solid var(--linha);padding:12px 14px;background:var(--claro)}
 .obs b{display:block;color:var(--tinta);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
 .det{border-top:1px solid var(--linha);margin-top:18px}
@@ -505,6 +510,30 @@ const PRODUTOS = [
       'Bandeira dos Estados Unidos aplicada na manga esquerda. Modelagem unissex.'
     ],
     specs:[['Cor','Preto'],['Estampa','ALCE AMERICAN + alce, frente'],['Detalhe','Bandeira dos EUA na manga'],['Tamanhos','P ao XG']]
+  },
+  {
+    /* >>> FALTA O PREÇO <<<  Enquanto `preco` for null, o boné aparece no
+       catálogo como "Consultar preço" e manda para o WhatsApp em vez de ir
+       para o carrinho. Basta trocar por um número (ex.: preco:149.90). */
+    id:'bone', nome:'Boné Alce American Premium Importado',
+    cat:'vestuario', preco:null, selo:'IMPORTADO', destaque:true,
+    bg:'#fff',
+    imgs:['assets/bone-preto-neon.jpg','assets/bone-azul.jpg','assets/bone-vermelho.jpg',
+          'assets/bone-rosa.jpg','assets/bone-roxo.jpg'],
+    variacao:{ rotulo:'Cor', trocaImagem:true,
+               opcoes:['Preto e Amarelo Neon','Azul','Vermelho','Rosa','Roxo'] },
+    resumo:'Boné trucker importado com tecnologia Flexfit, super ventilado e bordado Alce American. Cinco cores.',
+    desc:[
+      'Estilo country, conforto e exclusividade em uma única peça.',
+      'Boné importado, desenvolvido para quem busca um visual diferenciado sem abrir mão do conforto. Seu design super ventilado e leve proporciona maior circulação de ar, sendo ideal para o dia a dia, campo, rodeios e momentos de lazer.',
+      'O sistema Flexfit oferece ajuste confortável e excelente adaptação à cabeça, proporcionando segurança e liberdade de movimento.',
+      'Alce American: para quem não usa apenas um boné, veste um estilo.'
+    ],
+    destaques:['Produto importado','Super ventilado','Leve e confortável','Tecnologia Flexfit',
+               'Bordado Alce American','Estilo country premium','Acabamento diferenciado'],
+    specs:[['Modelo','Trucker, frente em tecido e laterais em tela'],['Ajuste','Flexfit'],
+           ['Bordado','Alce American, frontal em alto relevo'],['Origem','Importado'],
+           ['Cores','Preto e amarelo neon, azul, vermelho, rosa e roxo']]
   },
   {
     id:'camiseta-branca', nome:'Camiseta Alce American Branca',
@@ -840,13 +869,18 @@ function cardHTML(p){
     <div class="card__b">
       <span class="card__marca">ALCE AMERICAN</span>
       <h3 class="card__nome"><a href="#/produto/${p.id}">${esc(p.nome)}</a></h3>
-      <span class="card__por">${moeda(p.preco)}</span>
-      <span class="card__pix">${moeda(pix(p.preco))} no Pix</span>
-      <span class="card__parc">${linhaParcela(p.preco)}</span>
+      ${p.preco == null
+        ? `<span class="card__por card__sob">Consultar preço</span>
+           <span class="card__parc">Chame no WhatsApp para o valor</span>`
+        : `<span class="card__por">${moeda(p.preco)}</span>
+           <span class="card__pix">${moeda(pix(p.preco))} no Pix</span>
+           <span class="card__parc">${linhaParcela(p.preco)}</span>`}
       <div class="card__btn">
-        ${semVar
-          ? `<button data-add="${p.id}">Comprar</button>`
-          : `<button data-ir="${p.id}">Escolher tamanho</button>`}
+        ${p.preco == null
+          ? `<button data-ir="${p.id}">Ver o produto</button>`
+          : semVar
+            ? `<button data-add="${p.id}">Comprar</button>`
+            : `<button data-ir="${p.id}">Escolher ${esc(p.variacao.rotulo).toLowerCase()}</button>`}
       </div>
     </div>
   </article>`;
@@ -1016,22 +1050,27 @@ function viewProduto(id){
         <p class="pv__resumo">${esc(p.resumo)}</p>
 
         <div class="pv__preco">
-          <div class="pv__por">${moeda(p.preco)}</div>
-          <div class="pv__pix">${moeda(pix(p.preco))} à vista no Pix (10% off)</div>
-          <div class="pv__parc">${linhaParcela(p.preco)}</div>
+          ${p.preco == null
+            ? `<div class="pv__por pv__sob">Consultar preço</div>
+               <div class="pv__parc">Chame no WhatsApp que a gente te passa o valor e as formas de pagamento.</div>`
+            : `<div class="pv__por">${moeda(p.preco)}</div>
+               <div class="pv__pix">${moeda(pix(p.preco))} à vista no Pix (10% off)</div>
+               <div class="pv__parc">${linhaParcela(p.preco)}</div>`}
         </div>
 
         ${p.variacao ? `
         <div class="pv__var">
-          <span class="pv__lbl">${esc(p.variacao.rotulo).toUpperCase()}${varSel?': '+esc(varSel):''}</span>
+          <span class="pv__lbl" id="pvLblVar">${esc(p.variacao.rotulo).toUpperCase()}${varSel?': '+esc(varSel):''}</span>
           <div class="chips">
-            ${p.variacao.opcoes.map(o=>`<button class="chip ${varSel===o?'on':''}" data-var="${esc(o)}">${esc(o)}</button>`).join('')}
+            ${p.variacao.opcoes.map((o,i)=>`<button class="chip ${varSel===o?'on':''}" data-var="${esc(o)}" data-varidx="${i}">${esc(o)}</button>`).join('')}
           </div>
+          ${p.variacao.rotulo === 'Tamanho' ? `
           <small style="font-size:11.5px;color:var(--cinza);display:block;margin-top:8px">
             Não sabe o tamanho? <a href="#/pagina/trocas" style="color:var(--terra);font-weight:600">A primeira troca é por nossa conta.</a>
-          </small>
+          </small>` : ''}
         </div>` : ''}
 
+        ${p.preco == null ? '' : `
         <div class="pv__acao">
           <div class="qtd">
             <button data-q="-" aria-label="Diminuir quantidade">−</button>
@@ -1039,9 +1078,10 @@ function viewProduto(id){
             <button data-q="+" aria-label="Aumentar quantidade">+</button>
           </div>
           <button class="btn btn--p" data-comprar="${p.id}">Adicionar à sacola</button>
-        </div>
-        <a class="btn btn--zap btn--full" data-zapprod="${p.id}">Tirar dúvida no WhatsApp</a>
+        </div>`}
+        <a class="btn btn--zap btn--full" data-zapprod="${p.id}">${p.preco == null ? 'Pedir preço no WhatsApp' : 'Tirar dúvida no WhatsApp'}</a>
 
+        ${p.preco == null ? '' : `
         <div class="frete">
           <span class="pv__lbl">CALCULAR FRETE E PRAZO</span>
           <div class="frete__in">
@@ -1050,7 +1090,7 @@ function viewProduto(id){
             <button class="btn btn--s" data-calcfrete="${p.id}">Calcular</button>
           </div>
           <div class="frete__r" id="freteProd" aria-live="polite"></div>
-        </div>
+        </div>`}
 
         <div class="pv__frete">
           <span>📦 Frete grátis em pedidos acima de <b>${moeda(CONFIG.freteGratis)}</b></span>
@@ -1061,7 +1101,10 @@ function viewProduto(id){
         <div class="det">
           <details open>
             <summary>DESCRIÇÃO</summary>
-            <div class="det__c">${p.desc.map(d=>`<p>${esc(d)}</p>`).join('')}</div>
+            <div class="det__c">
+              ${p.desc.map(d=>`<p>${esc(d)}</p>`).join('')}
+              ${p.destaques ? `<ul class="destaques">${p.destaques.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+            </div>
           </details>
           <details>
             <summary>ESPECIFICAÇÕES</summary>
@@ -1371,9 +1414,19 @@ document.addEventListener('click', e => {
   const vr = el('[data-var]');
   if(vr){ pvEstado.vari = vr.dataset.var;
     $$('[data-var]').forEach(b=>b.classList.toggle('on', b===vr));
-    const lbl = $('.pv__lbl');
     const p = prod(rotaAtual()[1]);
+    const lbl = $('#pvLblVar');
     if(lbl && p) lbl.textContent = p.variacao.rotulo.toUpperCase() + ': ' + pvEstado.vari;
+
+    // quando cada opção tem a sua própria foto (cores), a galeria acompanha
+    if(p && p.variacao.trocaImagem){
+      const i = +vr.dataset.varidx;
+      if(p.imgs[i]){
+        pvEstado.img = i;
+        const g = $('#galImg'); if(g) g.src = p.imgs[i];
+        $$('.gal__ths button').forEach(b => b.classList.toggle('on', +b.dataset.th === i));
+      }
+    }
     return; }
 
   const q = el('[data-q]');
@@ -1395,7 +1448,10 @@ document.addEventListener('click', e => {
   const zp = el('[data-zapprod]');
   if(zp){
     const p = prod(zp.dataset.zapprod);
-    window.open(zapLink(`Olá! Tenho uma dúvida sobre o produto *${p.nome}* (${moeda(p.preco)}).`), '_blank', 'noopener');
+    const cor = pvEstado.vari ? ` — ${p.variacao.rotulo}: ${pvEstado.vari}` : '';
+    window.open(zapLink(p.preco == null
+      ? `Olá! Queria saber o preço do produto *${p.nome}*${cor}.`
+      : `Olá! Tenho uma dúvida sobre o produto *${p.nome}*${cor} (${moeda(p.preco)}).`), '_blank', 'noopener');
     return;
   }
 
