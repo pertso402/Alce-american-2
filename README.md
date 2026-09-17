@@ -65,6 +65,32 @@ array. Nada mais precisa ser alterado.
 Por ser estático, funciona em GitHub Pages, Vercel, Netlify ou qualquer
 hospedagem comum. No GitHub Pages, basta apontar para a branch `main` na raiz.
 
+## Cálculo de frete
+
+Na página do produto e na finalização, a pessoa digita o CEP e o site responde
+sozinho. Na finalização, o endereço ainda é preenchido automaticamente e o frete
+entra no resumo sem ela clicar em nada. O último CEP fica salvo no navegador, então
+nas próximas páginas o cálculo já aparece pronto.
+
+### O que é real e o que é estimativa
+
+- **O endereço é real.** Vem do [ViaCEP](https://viacep.com.br), que é público,
+  gratuito e libera CORS — funciona direto do navegador, sem servidor e sem chave.
+- **O valor do frete é uma estimativa**, tirada da tabela por região em
+  `CONFIG.frete`. Cotação ao vivo (Correios, Melhor Envio, SuperFrete) exige um
+  token secreto, e token secreto não pode ficar em JavaScript que o cliente baixa —
+  precisaria de um backend. Por isso a tela sempre diz "estimativa" e avisa que o
+  valor final é confirmado no WhatsApp.
+
+Para trocar por cotação real no futuro, basta reescrever `calcularFrete()` para
+chamar o seu backend. O resto da tela não muda.
+
+### Regras aplicadas
+
+- Frete grátis acima de `CONFIG.freteGratis`.
+- O desconto do Pix incide sobre os produtos, **não** sobre o frete.
+- O valor e o prazo estimados entram na mensagem que vai para o WhatsApp.
+
 ## O vídeo do kit no banner
 
 O banner da home mostra o **vídeo real do kit girando**, em loop, sem som e sem

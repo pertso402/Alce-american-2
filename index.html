@@ -233,6 +233,28 @@ input,select,textarea{font:inherit}
 .qtd span{min-width:34px;text-align:center;font-weight:700;font-size:15px}
 .pv__frete{font-size:12.5px;color:var(--cinza);margin-top:14px;display:grid;gap:5px}
 .pv__frete b{color:var(--verde)}
+
+/* calculadora de frete */
+.frete{margin-top:20px;padding-top:18px;border-top:1px solid var(--linha)}
+.frete__in{display:grid;grid-template-columns:1fr auto;gap:8px;max-width:340px}
+.frete__in input{border:1px solid var(--linha);padding:11px 12px;border-radius:2px;font-size:14px;width:100%}
+.frete__in input:focus{outline:none;border-color:var(--tinta)}
+.frete__in .btn{padding:11px 18px}
+.frete__r:empty{display:none}
+.frete__r{margin-top:10px}
+.frete__ok{border:1px solid var(--linha);border-left:3px solid var(--verde);padding:11px 13px;font-size:13px;display:grid;gap:3px;background:var(--claro)}
+.frete__ok b{font-size:15px}
+.frete__ok b.ok{color:var(--verde)}
+.frete__ok span{color:var(--cinza)}
+.frete__ok small{color:var(--cinza);font-size:11.5px}
+.frete__erro{border:1px solid var(--linha);border-left:3px solid var(--terra);padding:11px 13px;font-size:13px;color:var(--cinza);background:var(--claro)}
+.frete__load{font-size:13px;color:var(--cinza);padding:4px 0}
+#ckCepMsg.ok{color:var(--verde);font-weight:600}
+#ckCepMsg.erro{color:var(--terra);font-weight:600}
+
+/* observação legal na página do produto */
+.obs{margin-top:18px;font-size:11.5px;line-height:1.55;color:var(--cinza);border:1px solid var(--linha);padding:12px 14px;background:var(--claro)}
+.obs b{display:block;color:var(--tinta);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
 .det{border-top:1px solid var(--linha);margin-top:18px}
 .det details{border-bottom:1px solid var(--linha)}
 .det summary{padding:14px 0;font-size:13px;font-weight:700;letter-spacing:.04em;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
@@ -414,8 +436,24 @@ const CONFIG = {
   freteGratis:   199,               // valor mínimo para frete grátis (R$)
   pixDesconto:   0.10,              // 10% de desconto no Pix
   maxParcelas:   6,
-  parcelaMinima: 30                 // não parcela em valores menores que isso
+  parcelaMinima: 30,                // não parcela em valores menores que isso
+
+  /* >>> CONFIRA ESTA TABELA ANTES DE PUBLICAR <<<
+     Valor e prazo do frete por região, saindo de Maringá/PR.
+     Os números abaixo são um ponto de partida — troque pelos seus valores reais
+     de postagem. O site sempre mostra o resultado como "estimativa" e o valor
+     final é confirmado por você no WhatsApp. */
+  frete: {
+    sul:          { valor: 24.90, prazo: '3 a 6'   },
+    sudeste:      { valor: 29.90, prazo: '4 a 8'   },
+    centro_oeste: { valor: 32.90, prazo: '5 a 9'   },
+    nordeste:     { valor: 42.90, prazo: '7 a 14'  },
+    norte:        { valor: 49.90, prazo: '9 a 18'  }
+  }
 };
+
+/* Texto legal exigido em todas as páginas de produto. */
+const OBSERVACAO = 'Os produtos podem apresentar pequenas alterações na cor devido às configurações dos monitores ou dispositivos móveis. Porém, garantimos as características dos produtos como: quantidade, peso, matéria-prima e funcionalidade.';
 
 /* --------------------------------------------------------------------------
    CATÁLOGO
@@ -607,6 +645,140 @@ function linhaParcela(v){
 }
 function zapLink(msg){
   return 'https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent(msg);
+}
+
+/* ========================= CEP e frete =========================
+   O site é estático, sem servidor. Por isso:
+   - o ENDEREÇO vem do ViaCEP, que é público, gratuito e libera CORS, então
+     funciona direto do navegador;
+   - o VALOR do frete sai da tabela por região no CONFIG, porque cotação ao vivo
+     (Correios/Melhor Envio) exige token secreto e um backend para guardá-lo.
+   Por isso o resultado é sempre apresentado como estimativa.
+   Para trocar por cotação real depois, basta reescrever calcularFrete(). */
+const REGIOES = {
+  sul:          { nome:'Sul',          ufs:['PR','SC','RS'] },
+  sudeste:      { nome:'Sudeste',      ufs:['SP','RJ','MG','ES'] },
+  centro_oeste: { nome:'Centro-Oeste', ufs:['MS','MT','GO','DF'] },
+  nordeste:     { nome:'Nordeste',     ufs:['BA','SE','AL','PE','PB','RN','CE','PI','MA'] },
+  norte:        { nome:'Norte',        ufs:['TO','PA','AP','RR','AM','AC','RO'] }
+};
+
+const soDigitos = v => (v || '').replace(/\D/g, '');
+
+function mascaraCep(v){
+  const d = soDigitos(v).slice(0, 8);
+  return d.length > 5 ? d.slice(0,5) + '-' + d.slice(5) : d;
+}
+function regiaoDaUF(uf){
+  uf = (uf || '').toUpperCase();
+  for(const k in REGIOES) if(REGIOES[k].ufs.includes(uf)) return k;
+  return null;
+}
+function calcularFrete(uf, valorPedido){
+  const k = regiaoDaUF(uf);
+  if(!k) return null;
+  const t = CONFIG.frete[k];
+  const gratis = valorPedido >= CONFIG.freteGratis;
+  return { regiao: REGIOES[k].nome, valor: gratis ? 0 : t.valor, cheio: t.valor, prazo: t.prazo, gratis };
+}
+
+/* Consulta o ViaCEP. Devolve null se o CEP não existe e lança se a rede falhar,
+   para a tela conseguir diferenciar "CEP inválido" de "sem internet". */
+async function buscarCep(cep){
+  const d = soDigitos(cep);
+  if(d.length !== 8) return null;
+  const r = await fetch(`https://viacep.com.br/ws/${d}/json/`);
+  if(!r.ok) throw new Error('viacep ' + r.status);
+  const j = await r.json();
+  if(j.erro) return null;
+  return { cep:d, logradouro:j.logradouro||'', bairro:j.bairro||'', cidade:j.localidade||'', uf:j.uf||'' };
+}
+
+/* Último CEP consultado, para não pedir de novo na finalização. */
+function cepSalvo(){ try { return localStorage.getItem('aa_cep') || ''; } catch(e){ return ''; } }
+function salvarCep(c){ try { localStorage.setItem('aa_cep', soDigitos(c)); } catch(e){} }
+
+/* Frete calculado na finalização. Zerado a cada troca de rota. */
+let freteAtual = null;
+
+/* Página do produto: CEP -> endereço (ViaCEP) -> estimativa pela região. */
+async function calcularFreteProduto(id){
+  const p = prod(id), cx = $('#freteProd'), inp = $('#cepProd');
+  if(!p || !cx || !inp) return;
+  const d = soDigitos(inp.value);
+  if(d.length !== 8){ cx.innerHTML = '<div class="frete__erro">Digite os 8 números do CEP.</div>'; return; }
+
+  cx.innerHTML = '<div class="frete__load">Consultando...</div>';
+  try{
+    const end = await buscarCep(d);
+    if(!end){ cx.innerHTML = '<div class="frete__erro">CEP não encontrado. Confira o número.</div>'; return; }
+    salvarCep(d);
+    const valorPedido = p.preco * pvEstado.qtd;
+    const f = calcularFrete(end.uf, valorPedido);
+    if(!f){ cx.innerHTML = '<div class="frete__erro">Não consegui identificar o estado desse CEP. Chame no WhatsApp.</div>'; return; }
+    cx.innerHTML = htmlResultadoFrete(f, end, valorPedido);
+  }catch(e){
+    cx.innerHTML = '<div class="frete__erro">Não consegui consultar agora. Tente de novo em instantes.</div>';
+  }
+}
+
+/* Finalização: o CEP preenche o endereço e o frete entra no resumo sozinho. */
+async function calcularFreteCheckout(){
+  const inp = $('#ckCep'); if(!inp) return;
+  const msg = $('#ckCepMsg');
+  const aviso = (txt, cls) => { if(msg){ msg.textContent = txt; msg.className = cls || ''; } };
+  const d = soDigitos(inp.value);
+
+  if(d.length !== 8){ freteAtual = null; pintarResumoCheckout(); return; }
+
+  aviso('Buscando endereço...');
+  try{
+    const end = await buscarCep(d);
+    if(!end){
+      freteAtual = null; aviso('CEP não encontrado. Confira o número.', 'erro');
+      pintarResumoCheckout(); return;
+    }
+    salvarCep(d);
+    const põe = (sel, v) => { const e = $(sel); if(e && v) e.value = v; };
+    põe('#ckEnd', end.logradouro); põe('#ckBairro', end.bairro);
+    põe('#ckCidade', end.cidade);  põe('#ckUf', end.uf);
+
+    const f = calcularFrete(end.uf, subtotal());
+    freteAtual = f ? Object.assign({}, f, { cidade:end.cidade, uf:end.uf }) : null;
+    aviso(`${end.cidade}/${end.uf} — endereço preenchido.`, 'ok');
+    const num = $('#ckNum'); if(num && !num.value) num.focus();
+  }catch(e){
+    freteAtual = null;
+    aviso('Não consegui consultar o CEP agora. Pode preencher à mão.', 'erro');
+  }
+  pintarResumoCheckout();
+}
+
+/* O desconto do Pix vale sobre os produtos, não sobre o frete. */
+function pintarResumoCheckout(){
+  const elFrete = $('#ckFrete'); if(!elFrete) return;
+  const sub = subtotal();
+  const custo = (freteAtual && freteAtual.regiao && !freteAtual.gratis) ? freteAtual.valor : 0;
+
+  if(!freteAtual || !freteAtual.regiao)   elFrete.textContent = 'informe o CEP';
+  else if(freteAtual.gratis)              elFrete.innerHTML   = '<b style="color:var(--verde)">Grátis</b>';
+  else                                    elFrete.textContent = moeda(freteAtual.valor);
+
+  $('#ckTotal').textContent = moeda(sub + custo);
+  $('#ckPix').textContent   = moeda(pix(sub) + custo);
+}
+
+function htmlResultadoFrete(f, dados, valorPedido){
+  const onde = `${esc(dados.cidade)}/${esc(dados.uf)}`;
+  const prazo = `<span>Chega em cerca de ${f.prazo} dias úteis após a postagem.</span>`;
+  if(f.gratis){
+    return `<div class="frete__ok"><b class="ok">Frete grátis</b> para ${onde}
+      ${prazo}<small>Estimativa — o valor final é confirmado no WhatsApp.</small></div>`;
+  }
+  const falta = CONFIG.freteGratis - valorPedido;
+  return `<div class="frete__ok"><b>${moeda(f.valor)}</b> para ${onde}
+    ${prazo}<small>Estimativa — o valor final é confirmado no WhatsApp.${
+      falta > 0 ? ` Faltam ${moeda(falta)} para o frete grátis.` : ''}</small></div>`;
 }
 
 let toastT;
@@ -870,10 +1042,20 @@ function viewProduto(id){
         </div>
         <a class="btn btn--zap btn--full" data-zapprod="${p.id}">Tirar dúvida no WhatsApp</a>
 
+        <div class="frete">
+          <span class="pv__lbl">CALCULAR FRETE E PRAZO</span>
+          <div class="frete__in">
+            <input id="cepProd" value="${esc(mascaraCep(cepSalvo()))}" placeholder="00000-000"
+                   inputmode="numeric" maxlength="9" data-cep aria-label="Seu CEP">
+            <button class="btn btn--s" data-calcfrete="${p.id}">Calcular</button>
+          </div>
+          <div class="frete__r" id="freteProd" aria-live="polite"></div>
+        </div>
+
         <div class="pv__frete">
           <span>📦 Frete grátis em pedidos acima de <b>${moeda(CONFIG.freteGratis)}</b></span>
           <span>🔄 Troca em até 30 dias · ↩️ 7 dias para arrependimento</span>
-          <span>💬 Pedido finalizado pelo WhatsApp, com frete calculado pelo seu CEP</span>
+          <span>💬 Pedido finalizado pelo WhatsApp, com o frete confirmado antes do pagamento</span>
         </div>
 
         <div class="det">
@@ -897,6 +1079,8 @@ function viewProduto(id){
             </div>
           </details>
         </div>
+
+        <p class="obs"><b>Observação</b> ${esc(OBSERVACAO)}</p>
       </div>
     </div>
 
@@ -935,7 +1119,7 @@ function viewCheckout(){
         <div class="bloco">
           <h3>Entrega</h3>
           <div class="linha3">
-            <div class="campo"><label for="ckCep">CEP *</label><input id="ckCep" name="cep" required placeholder="00000-000" inputmode="numeric" autocomplete="postal-code"><small>Usamos o CEP para calcular o frete.</small></div>
+            <div class="campo"><label for="ckCep">CEP *</label><input id="ckCep" name="cep" required value="${esc(mascaraCep(cepSalvo()))}" placeholder="00000-000" inputmode="numeric" maxlength="9" data-cep autocomplete="postal-code"><small id="ckCepMsg">Digite o CEP e o endereço é preenchido sozinho.</small></div>
             <div class="campo"><label for="ckNum">Número *</label><input id="ckNum" name="num" required></div>
           </div>
           <div class="campo"><label for="ckEnd">Endereço *</label><input id="ckEnd" name="end" required placeholder="Rua, avenida..." autocomplete="street-address"></div>
@@ -975,9 +1159,9 @@ function viewCheckout(){
           }).join('')}
           <div class="res" style="margin-top:14px">
             <div><span>Subtotal</span><span>${moeda(sub)}</span></div>
-            <div><span>Frete</span><span>${freteGratis()?'<b style="color:var(--verde)">Grátis</b>':'a calcular'}</span></div>
-            <div class="tot"><span>Total</span><span>${moeda(sub)}</span></div>
-            <div class="eco"><span>No Pix</span><span>${moeda(pix(sub))}</span></div>
+            <div><span>Frete</span><span id="ckFrete">informe o CEP</span></div>
+            <div class="tot"><span>Total</span><span id="ckTotal">${moeda(sub)}</span></div>
+            <div class="eco"><span>No Pix</span><span id="ckPix">${moeda(pix(sub))}</span></div>
           </div>
           <button type="submit" class="btn btn--zap btn--full" style="margin-top:16px">Enviar pedido pelo WhatsApp</button>
           <p class="aviso" style="margin-top:10px">Nenhum pagamento é feito aqui no site. A confirmação e o pagamento acontecem na conversa.</p>
@@ -1029,6 +1213,12 @@ function render(){
   marcarMenu(a, b);
   if(a === 'pagina' && b === 'contato') pintarContato();
   montarVideoKit();
+
+  /* Se a pessoa já informou o CEP antes, o frete aparece sem ela pedir. */
+  freteAtual = null;
+  if(a === 'checkout' && soDigitos(cepSalvo()).length === 8) calcularFreteCheckout();
+  if(a === 'produto'  && soDigitos(cepSalvo()).length === 8) calcularFreteProduto(b);
+
   window.scrollTo({top:0, behavior:'instant'});
 }
 
@@ -1128,10 +1318,17 @@ function mensagemPedido(dados){
   });
   const sub = subtotal();
   L.push('');
+  const custoFrete = (freteAtual && freteAtual.regiao && !freteAtual.gratis) ? freteAtual.valor : 0;
   L.push(`Subtotal: ${moeda(sub)}`);
-  L.push(`Frete: ${freteGratis() ? 'grátis (pedido acima de ' + moeda(CONFIG.freteGratis) + ')' : 'a calcular pelo CEP'}`);
-  if(dados.pag === 'Pix') L.push(`*Total no Pix (10% off): ${moeda(pix(sub))}*`);
-  else L.push(`*Total: ${moeda(sub)}*`);
+  if(freteAtual && freteAtual.regiao){
+    L.push(freteAtual.gratis
+      ? `Frete: grátis (pedido acima de ${moeda(CONFIG.freteGratis)}) — ${freteAtual.regiao}, ${freteAtual.prazo} dias úteis`
+      : `Frete estimado: ${moeda(freteAtual.valor)} — ${freteAtual.regiao}, ${freteAtual.prazo} dias úteis`);
+  } else {
+    L.push('Frete: a calcular pelo CEP');
+  }
+  if(dados.pag === 'Pix') L.push(`*Total no Pix (10% off): ${moeda(pix(sub) + custoFrete)}*`);
+  else L.push(`*Total: ${moeda(sub + custoFrete)}*`);
   L.push(`Pagamento: ${dados.pag}`);
   L.push('');
   L.push('*CLIENTE*');
@@ -1192,6 +1389,9 @@ document.addEventListener('click', e => {
     return;
   }
 
+  const cf = el('[data-calcfrete]');
+  if(cf){ e.preventDefault(); calcularFreteProduto(cf.dataset.calcfrete); return; }
+
   const zp = el('[data-zapprod]');
   if(zp){
     const p = prod(zp.dataset.zapprod);
@@ -1222,6 +1422,31 @@ document.addEventListener('click', e => {
   if(el('#btnNews')){
     window.open(zapLink('Oi! Quero receber as novidades e promoções da Alce American no WhatsApp.'), '_blank', 'noopener');
     return;
+  }
+});
+
+/* Máscara do CEP + disparo automático do frete na finalização.
+   O debounce evita uma consulta ao ViaCEP a cada tecla. */
+let cepTimer;
+document.addEventListener('input', e => {
+  const c = e.target.closest && e.target.closest('[data-cep]');
+  if(!c) return;
+  const fim = c.selectionStart === c.value.length;
+  c.value = mascaraCep(c.value);
+  if(fim) c.setSelectionRange(c.value.length, c.value.length);
+
+  if(c.id === 'ckCep'){
+    clearTimeout(cepTimer);
+    cepTimer = setTimeout(calcularFreteCheckout, 450);
+  }
+});
+
+/* Enter no CEP da página do produto calcula em vez de não fazer nada. */
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && e.target.id === 'cepProd'){
+    e.preventDefault();
+    const b = $('[data-calcfrete]');
+    if(b) calcularFreteProduto(b.dataset.calcfrete);
   }
 });
 
